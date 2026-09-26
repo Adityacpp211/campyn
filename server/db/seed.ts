@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { dbClient, getDb, withTransaction } from './index';
+import { dbClient, withTransaction } from './index';
 import { runMigrations } from './migrate';
 import { createAuditLog } from '../services/auditService';
 import { config } from '../config';
@@ -69,7 +69,7 @@ export async function seedDatabase(): Promise<void> {
       VALUES ($1, 'CAMP-01', 'North Academic Campus', '100 University Parkway, Tech City')
       RETURNING id
     `, [instId]);
-    const campId = campRes.rows[0].id;
+    const _campId = campRes.rows[0].id;
 
     // 3. Departments
     const deptCseRes = await tx.query(`
@@ -91,14 +91,14 @@ export async function seedDatabase(): Promise<void> {
       VALUES ($1, 'ME', 'Mechanical Engineering')
       RETURNING id
     `, [instId]);
-    const deptMeId = deptMeRes.rows[0].id;
+    const _deptMeId = deptMeRes.rows[0].id;
 
     const deptItRes = await tx.query(`
       INSERT INTO departments (institution_id, code, name)
       VALUES ($1, 'IT', 'Information Technology')
       RETURNING id
     `, [instId]);
-    const deptItId = deptItRes.rows[0].id;
+    const _deptItId = deptItRes.rows[0].id;
 
     // 4. Programs, Academic Years, Semesters, Sections
     const progRes = await tx.query(`
@@ -252,7 +252,7 @@ export async function seedDatabase(): Promise<void> {
       return userId;
     }
 
-    const adminUserId = await createUser('admin.vance@campus.edu', 'avance', 'Adrian', 'Vance', 'COLLEGE_ADMIN');
+    const _adminUserId = await createUser('admin.vance@campus.edu', 'avance', 'Adrian', 'Vance', 'COLLEGE_ADMIN');
     const facultyJenkinsId = await createUser('s.jenkins@campus.edu', 'sjenkins', 'Sarah', 'Jenkins', 'FACULTY');
     const facultyMillerId = await createUser('d.miller@campus.edu', 'dmiller', 'David', 'Miller', 'FACULTY');
     const facultyRoyId = await createUser('a.roy@campus.edu', 'aroy', 'Anita', 'Roy', 'FACULTY');
@@ -263,8 +263,8 @@ export async function seedDatabase(): Promise<void> {
     const studentMarcusId = await createUser('m.vance@campus.edu', 'mvance', 'Marcus', 'Vance Jr.', 'STUDENT');
     const studentAidenId = await createUser('a.kim@campus.edu', 'akim', 'Aiden', 'Kim', 'STUDENT');
     const studentEmmaId = await createUser('e.watson@campus.edu', 'ewatson', 'Emma', 'Watson', 'STUDENT');
-    const auditorId = await createUser('auditor.stone@campus.edu', 'astone', 'Rachel', 'Stone', 'AUDITOR');
-    const principalId = await createUser('principal.sharma@campus.edu', 'rsharma', 'Dr. Ramesh', 'Sharma', 'PRINCIPAL');
+    const _auditorId = await createUser('auditor.stone@campus.edu', 'astone', 'Rachel', 'Stone', 'AUDITOR');
+    const _principalId = await createUser('principal.sharma@campus.edu', 'rsharma', 'Dr. Ramesh', 'Sharma', 'PRINCIPAL');
 
     // 7. Faculty Details
     const fac1Res = await tx.query(`

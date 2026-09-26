@@ -24,14 +24,14 @@ export function useExams() {
     fetchExams();
   }, [fetchExams]);
 
-  const fetchMarks = async (examId: string): Promise<MarksEntry[]> => {
+  const fetchMarks = useCallback(async (examId: string): Promise<MarksEntry[]> => {
     try {
       const res = await api.exams.marks(examId);
       return Array.isArray(res) ? res : [];
     } catch {
       return [];
     }
-  };
+  }, []);
 
   const updateMarks = async (id: string, marksObtained: number, grade: string, reason: string) => {
     return await api.exams.updateMarks(id, marksObtained, grade, reason);

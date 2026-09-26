@@ -6,7 +6,7 @@ import { dbClient } from '../server/db';
 
 let adminToken: string;
 let facultyToken: string;
-let studentToken: string;
+let _studentToken: string;
 let sectionCourseId: string;
 let studentId: string;
 let sessionId: string;
@@ -28,7 +28,7 @@ beforeAll(async () => {
   const studentLogin = await request(app)
     .post('/api/v1/auth/login')
     .send({ email: 'm.chen@campus.edu', password: 'Password@123' });
-  studentToken = studentLogin.body.data.token;
+  _studentToken = studentLogin.body.data.token;
 
   // Get assigned section course for Sarah Jenkins
   const scRes = await dbClient.query(`

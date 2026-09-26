@@ -21,7 +21,7 @@ export class FacultyRepository {
 
     if (query.departmentId && query.departmentId !== 'all') {
       params.push(query.departmentId);
-      baseSql += ` AND (f.department_id = $${params.length} OR d.code = $${params.length})`;
+      baseSql += ` AND (f.department_id::text = $${params.length} OR d.code = $${params.length})`;
     }
 
     if (query.search && query.search.trim()) {

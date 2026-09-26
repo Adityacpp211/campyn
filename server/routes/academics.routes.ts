@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { enforceTenantIsolation } from '../middleware/tenantIsolation';
-import { requirePermission, requireAnyPermission } from '../middleware/rbac';
+import { requireAnyPermission } from '../middleware/rbac';
 import { academicController } from '../controllers/academic.controller';
 import { courseController } from '../controllers/course.controller';
 

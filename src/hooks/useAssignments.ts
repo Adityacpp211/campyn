@@ -24,14 +24,14 @@ export function useAssignments() {
     fetchAssignments();
   }, [fetchAssignments]);
 
-  const fetchSubmissions = async (asgId: string): Promise<Submission[]> => {
+  const fetchSubmissions = useCallback(async (asgId: string): Promise<Submission[]> => {
     try {
       const subs = await api.assignments.submissions(asgId);
       return Array.isArray(subs) ? subs : [];
     } catch {
       return [];
     }
-  };
+  }, []);
 
   return {
     assignments,

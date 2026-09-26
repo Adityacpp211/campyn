@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Bell, Shield, Menu } from 'lucide-react';
+import { Search, Bell, Shield } from 'lucide-react';
 import { User } from '../../types';
 
 interface TopbarProps {

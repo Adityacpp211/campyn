@@ -30,7 +30,7 @@ export class StudentRepository {
 
     if (query.departmentId && query.departmentId !== 'all') {
       params.push(query.departmentId);
-      whereClause += ` AND (d.id = $${params.length} OR d.code = $${params.length})`;
+      whereClause += ` AND (d.id::text = $${params.length} OR d.code = $${params.length})`;
     }
 
     if (query.section && query.section !== 'all') {

@@ -1,23 +1,47 @@
 import React, { useState } from 'react';
 import { useAttendance } from '../../hooks/useAttendance';
-import { User, AttendanceRecord } from '../../types';
+import { User, AttendanceRecord, GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { ShieldAlert, History, Loader2 } from 'lucide-react';
+import { ShieldAlert, History, Lock, Unlock, Loader2, Calendar } from 'lucide-react';
 import { api } from '../../services/api';
+import { hasPermission, PERMISSIONS } from '../../services/rbac';
 
 interface AttendanceViewProps {
   currentUser: User;
+  filter?: GlobalFilterState;
 }
 
-export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _currentUser }) => {
-  const { records, loading, error, updateRecord } = useAttendance();
+export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, filter: _filter }) => {
+  const {
+    sessions,
+    selectedSessionId,
+    setSelectedSessionId,
+    selectedSession,
+    records,
+    loading,
+    recordsLoading,
+    error,
+    updateRecord,
+    lockSession,
+    submitCorrection,
+  } = useAttendance();
+
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [newStatus, setNewStatus] = useState<'present' | 'absent' | 'late' | 'excused'>('present');
   const [editReason, setEditReason] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+
+  const canApproveOrLock =
+    hasPermission(currentUser.role, PERMISSIONS.ATTENDANCE_APPROVE) ||
+    currentUser.role === 'COLLEGE_ADMIN' ||
+    currentUser.role === 'HOD' ||
+    currentUser.role === 'PRINCIPAL';
+
+  const isSessionLocked = selectedSession?.isLocked ?? false;
 
   const handleOpenEdit = (rec: AttendanceRecord) => {
     setEditingRecord(rec);
@@ -27,18 +51,42 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
 
   const handleCommitEdit = async () => {
     if (!editingRecord || !editReason.trim()) {
-      alert('A valid justification reason (min 5 characters) is mandatory for auditable attendance edits.');
+      alert('A valid justification reason (minimum 5 characters) is mandatory for auditable attendance edits.');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await updateRecord(editingRecord.id, newStatus, editReason);
+      if (isSessionLocked) {
+        // If session is locked, submit as an official attendance correction request for governance approval
+        await submitCorrection(editingRecord.id, newStatus, editReason);
+        alert('Attendance correction request successfully submitted to governance approvals ledger.');
+      } else {
+        // Direct update with cryptographic audit trail
+        await updateRecord(editingRecord.id, newStatus, editReason);
+      }
       setEditingRecord(null);
     } catch (err: any) {
       alert(err.message || 'Failed to update attendance record');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLockSession = async () => {
+    if (!selectedSessionId) return;
+    const confirmLock = window.confirm(
+      'Are you sure you want to permanently lock this attendance session? Once locked, attendance becomes immutable and any further adjustments require two-tier administrative governance approval.'
+    );
+    if (!confirmLock) return;
+
+    try {
+      setIsLocking(true);
+      await lockSession(selectedSessionId);
+    } catch (err: any) {
+      alert(err.message || 'Failed to lock attendance session');
+    } finally {
+      setIsLocking(false);
     }
   };
 
@@ -54,6 +102,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
 
   const presentCount = records.filter((r) => r.status === 'present').length;
   const absentCount = records.filter((r) => r.status === 'absent').length;
+  const lateCount = records.filter((r) => r.status === 'late').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -64,11 +113,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
             Auditable Attendance System
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--color-light-gray)' }}>
-            Course: Data Structures (CS301) • Section A • Session Slot: 09:00 - 10:00 AM
+            Authoritative session roster recording with cryptographic lock & governance corrections
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button className="btn btn-outline btn-sm" onClick={openAuditHistory}>
             <History size={14} /> Audit Trail
           </button>
@@ -81,38 +130,134 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
         </div>
       )}
 
+      {/* Session Selector & Active Session Meta Banner */}
+      <div
+        style={{
+          padding: '16px',
+          backgroundColor: 'var(--color-dark-charcoal)',
+          border: '1px solid var(--color-border-gray)',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Calendar size={18} color="var(--color-light-gray)" />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-white)' }}>
+              Active Lecture Session:
+            </span>
+            <select
+              value={selectedSessionId || ''}
+              onChange={(e) => setSelectedSessionId(e.target.value)}
+              className="input-base"
+              style={{ width: 'auto', minWidth: '280px', padding: '6px 12px', fontSize: '13px' }}
+              disabled={loading || sessions.length === 0}
+            >
+              {sessions.length === 0 ? (
+                <option value="">No sessions scheduled</option>
+              ) : (
+                sessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.courseCode} ({s.sectionName}) — {new Date(s.sessionDate).toLocaleDateString()} [{s.slot}] {s.isLocked ? '🔒 Locked' : '🟢 Open'}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {selectedSession && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Badge variant={selectedSession.isLocked ? 'danger' : 'success'}>
+                {selectedSession.isLocked ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Lock size={12} /> LOCKED / FINALIZED
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Unlock size={12} /> OPEN FOR MARKING
+                  </span>
+                )}
+              </Badge>
+
+              {!selectedSession.isLocked && canApproveOrLock && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ borderColor: 'var(--color-danger-border)', color: '#ff8a80' }}
+                  onClick={handleLockSession}
+                  disabled={isLocking}
+                >
+                  {isLocking ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />}
+                  <span>Lock & Finalize Session</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {selectedSession && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--color-border-gray)',
+              fontSize: '12px',
+              color: 'var(--color-light-gray)',
+              flexWrap: 'wrap',
+              gap: '8px',
+            }}
+          >
+            <div>
+              <strong style={{ color: 'var(--color-white)' }}>Course:</strong> {selectedSession.courseName} ({selectedSession.courseCode}) •{' '}
+              <strong style={{ color: 'var(--color-white)' }}>Section:</strong> {selectedSession.sectionName}
+            </div>
+            <div>
+              <strong style={{ color: 'var(--color-white)' }}>Scheduled Slot:</strong> {selectedSession.slot} •{' '}
+              <strong style={{ color: 'var(--color-white)' }}>Instructor:</strong> {selectedSession.recordedBy}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Metrics Banner */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
         <div className="surface-card">
-          <span className="text-secondary" style={{ fontSize: '11px' }}>TOTAL ENROLLED</span>
+          <span className="text-secondary" style={{ fontSize: '11px' }}>ROSTER COUNT</span>
           <div style={{ fontSize: '22px', fontWeight: 600, color: 'var(--color-white)', marginTop: '4px' }}>
             {records.length} Students
           </div>
         </div>
         <div className="surface-card">
-          <span className="text-secondary" style={{ fontSize: '11px' }}>PRESENT TODAY</span>
+          <span className="text-secondary" style={{ fontSize: '11px' }}>PRESENT</span>
           <div style={{ fontSize: '22px', fontWeight: 600, color: '#81C784', marginTop: '4px' }}>
             {presentCount} ({records.length > 0 ? ((presentCount / records.length) * 100).toFixed(0) : 0}%)
           </div>
         </div>
         <div className="surface-card">
-          <span className="text-secondary" style={{ fontSize: '11px' }}>ABSENT / ON LEAVE</span>
+          <span className="text-secondary" style={{ fontSize: '11px' }}>ABSENT</span>
           <div style={{ fontSize: '22px', fontWeight: 600, color: '#E57373', marginTop: '4px' }}>
             {absentCount}
+          </div>
+        </div>
+        <div className="surface-card">
+          <span className="text-secondary" style={{ fontSize: '11px' }}>LATE / EXCUSED</span>
+          <div style={{ fontSize: '22px', fontWeight: 600, color: '#FFB74D', marginTop: '4px' }}>
+            {lateCount}
           </div>
         </div>
       </div>
 
       {/* Attendance Roster Grid */}
       <div className="table-container">
-        {loading && (
+        {loading || recordsLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px', color: 'var(--color-medium-gray)' }}>
             <Loader2 size={24} className="animate-spin" />
             <span style={{ marginLeft: '10px', fontSize: '13px' }}>Loading session roster...</span>
           </div>
-        )}
-
-        {!loading && (
+        ) : (
           <table className="data-table">
             <thead>
               <tr>
@@ -127,7 +272,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
               {records.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--color-medium-gray)' }}>
-                    No records found for this session.
+                    {sessions.length === 0 ? 'No attendance sessions found.' : 'No student records associated with this session.'}
                   </td>
                 </tr>
               ) : (
@@ -156,8 +301,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
                       {new Date(r.recordedAt).toLocaleString()}
                     </td>
                     <td>
-                      <button className="btn btn-outline btn-sm" onClick={() => handleOpenEdit(r)}>
-                        Edit Record
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={() => handleOpenEdit(r)}
+                      >
+                        {isSessionLocked ? 'Request Correction' : 'Edit Record'}
                       </button>
                     </td>
                   </tr>
@@ -173,25 +321,29 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
         <Modal
           isOpen={!!editingRecord}
           onClose={() => setEditingRecord(null)}
-          title={`Auditable Correction: ${editingRecord.studentName}`}
-          subtitle={`Current Status: ${editingRecord.status.toUpperCase()} • Roll: ${editingRecord.studentRoll}`}
+          title={isSessionLocked ? `Request Regularization: ${editingRecord.studentName}` : `Auditable Correction: ${editingRecord.studentName}`}
+          subtitle={`Current Status: ${editingRecord.status.toUpperCase()} • Roll: ${editingRecord.studentRoll} • Session: ${selectedSession?.courseCode || 'Lecture'}`}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div
               style={{
                 padding: '10px 12px',
-                backgroundColor: 'var(--color-warning-bg)',
-                border: '1px solid var(--color-warning-border)',
+                backgroundColor: isSessionLocked ? 'var(--color-danger-bg)' : 'var(--color-warning-bg)',
+                border: `1px solid ${isSessionLocked ? 'var(--color-danger-border)' : 'var(--color-warning-border)'}`,
                 borderRadius: 'var(--radius-md)',
                 fontSize: '12px',
-                color: '#FFB74D',
+                color: isSessionLocked ? '#FFA4A4' : '#FFB74D',
                 display: 'flex',
                 gap: '8px',
                 alignItems: 'center',
               }}
             >
               <ShieldAlert size={16} />
-              <span>Silent modifications are forbidden. This edit will be permanently recorded in the append-only audit log.</span>
+              <span>
+                {isSessionLocked
+                  ? 'This session is finalized. Submitting this change requires institutional governance approval before applying.'
+                  : 'Silent modifications are forbidden. This edit will be permanently recorded in the append-only cryptographic audit log.'}
+              </span>
             </div>
 
             <div>
@@ -220,60 +372,65 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser: _cu
                 value={editReason}
                 onChange={(e) => setEditReason(e.target.value)}
                 className="input-base"
-                style={{ resize: 'vertical' }}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-              <button className="btn btn-outline" onClick={() => setEditingRecord(null)} disabled={isSubmitting}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditingRecord(null)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleCommitEdit} disabled={isSubmitting}>
-                {isSubmitting ? 'Signing...' : 'Commit with Audit Signature'}
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleCommitEdit}
+                disabled={isSubmitting || !editReason.trim() || editReason.trim().length < 5}
+              >
+                {isSubmitting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : isSessionLocked ? (
+                  'Submit Regularization Ticket'
+                ) : (
+                  'Commit Audited Edit'
+                )}
               </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Audit Trail Drawer Modal */}
+      {/* Audit History Modal */}
       {showHistory && (
         <Modal
           isOpen={showHistory}
           onClose={() => setShowHistory(false)}
-          title="Attendance Modification Audit Log"
-          subtitle="Append-only cryptographic timeline of attendance adjustments"
-          maxWidth="640px"
+          title="Attendance Mutation Ledger"
+          subtitle="Cryptographically verified SHA-256 historical audit stream"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto' }}>
             {auditLogs.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-medium-gray)', fontSize: '13px' }}>
-                No attendance adjustment audit logs found.
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-medium-gray)' }}>
+                No attendance modifications recorded.
               </div>
             ) : (
               auditLogs.map((log) => (
                 <div
                   key={log.id}
                   style={{
-                    padding: '12px',
-                    backgroundColor: 'var(--color-charcoal)',
+                    padding: '10px',
                     border: '1px solid var(--color-border-gray)',
-                    borderRadius: 'var(--radius-md)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-near-black)',
                     fontSize: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Badge variant="warning">{log.action}</Badge>
-                    <span style={{ color: 'var(--color-medium-gray)' }}>{log.timestamp}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--color-white)' }}>{log.actorEmail || 'System'}</span>
+                    <span style={{ color: 'var(--color-medium-gray)' }}>{new Date(log.timestamp).toLocaleString()}</span>
                   </div>
-                  <div style={{ marginTop: '6px', color: 'var(--color-off-white)' }}>
-                    Actor: <strong>{log.actorEmail}</strong> ({log.role})
+                  <div style={{ color: 'var(--color-light-gray)' }}>
+                    <strong>Reason:</strong> {log.reason}
                   </div>
-                  <div style={{ marginTop: '4px', color: 'var(--color-light-gray)' }}>
-                    Reason: <em>"{log.reason}"</em>
-                  </div>
-                  <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--color-medium-gray)', fontFamily: 'var(--font-mono)' }}>
-                    Diff: {JSON.stringify(log.oldValues)} ➔ {JSON.stringify(log.newValues)}
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--color-medium-gray)', marginTop: '4px' }}>
+                    HASH: {log.recordHash ? log.recordHash.substring(0, 24) : 'N/A'}...
                   </div>
                 </div>
               ))

@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { useTimetable } from '../../hooks/useTimetable';
+import { GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { AlertTriangle, Clock, MapPin, User, Loader2 } from 'lucide-react';
 
-export const TimetableView: React.FC = () => {
+interface TimetableViewProps {
+  filter?: GlobalFilterState;
+}
+
+export const TimetableView: React.FC<TimetableViewProps> = ({ filter }) => {
   const [selectedDay, setSelectedDay] = useState<string>('All');
   const days = ['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -21,7 +26,7 @@ export const TimetableView: React.FC = () => {
             Class & Room Timetable
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--color-light-gray)' }}>
-            Department of Computer Science • Section A • Active Term Schedule
+            Academic Term Schedule {filter?.section ? `• ${filter.section}` : ''} {filter?.academicYear ? `• AY ${filter.academicYear}` : ''}
           </p>
         </div>
 

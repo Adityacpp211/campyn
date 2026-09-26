@@ -7,7 +7,7 @@ import { seedDatabase } from '../server/db/seed';
 
 let adminToken: string;
 let studentToken: string;
-let facultyToken: string;
+let _facultyToken: string;
 let sampleStudentId: string;
 let sampleApprovalId: string;
 let sampleExamId: string;
@@ -22,7 +22,7 @@ beforeAll(async () => {
   studentToken = studentLogin.body.data.token;
 
   const facultyLogin = await request(app).post('/api/auth/switch-role').send({ role: 'FACULTY' });
-  facultyToken = facultyLogin.body.data.token;
+  _facultyToken = facultyLogin.body.data.token;
 });
 
 describe('Phase V3 Verification: PostgreSQL Source of Truth & Zero Mock Data', () => {

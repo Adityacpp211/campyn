@@ -122,7 +122,7 @@ export async function authenticateToken(
     };
 
     next();
-  } catch (err: any) {
+  } catch {
     res.status(401).json({
       success: false,
       error: {

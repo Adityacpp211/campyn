@@ -52,6 +52,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({ filter, onFilt
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

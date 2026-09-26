@@ -9,6 +9,9 @@ export function useAcademics(options?: { departmentId?: string; search?: string 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const deptId = options?.departmentId;
+  const searchTerm = options?.search;
+
   const fetchAcademics = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -16,10 +19,10 @@ export function useAcademics(options?: { departmentId?: string; search?: string 
       const [deptList, courseList, progList] = await Promise.all([
         api.academics.departments(),
         api.academics.courses({
-          departmentId: options?.departmentId,
-          search: options?.search,
+          departmentId: deptId,
+          search: searchTerm,
         }),
-        api.academics.programs(options?.departmentId),
+        api.academics.programs(deptId),
       ]);
       setDepartments(deptList);
       setCourses(courseList);
@@ -29,7 +32,7 @@ export function useAcademics(options?: { departmentId?: string; search?: string 
     } finally {
       setLoading(false);
     }
-  }, [options?.departmentId, options?.search]);
+  }, [deptId, searchTerm]);
 
   useEffect(() => {
     fetchAcademics();

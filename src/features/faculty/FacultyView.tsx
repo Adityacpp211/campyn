@@ -1,10 +1,17 @@
 import React from 'react';
 import { useFaculty } from '../../hooks/useFaculty';
+import { GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Mail, Award, BookOpen, Loader2 } from 'lucide-react';
 
-export const FacultyView: React.FC = () => {
-  const { faculty, loading, error, refetch } = useFaculty();
+interface FacultyViewProps {
+  filter?: GlobalFilterState;
+}
+
+export const FacultyView: React.FC<FacultyViewProps> = ({ filter }) => {
+  const { faculty, loading, error, refetch } = useFaculty({
+    departmentId: filter?.departmentId || undefined,
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -5,7 +5,7 @@ import { seedDatabase } from '../server/db/seed';
 import { dbClient } from '../server/db';
 
 let adminToken: string;
-let facultyToken: string;
+let _facultyToken: string;
 let sc1Id: string;
 let sc2Id: string;
 let createdSlotId: string;
@@ -21,7 +21,7 @@ beforeAll(async () => {
   const facultyLogin = await request(app)
     .post('/api/v1/auth/login')
     .send({ email: 's.jenkins@campus.edu', password: 'Password@123' });
-  facultyToken = facultyLogin.body.data.token;
+  _facultyToken = facultyLogin.body.data.token;
 
   // Get two distinct section courses
   const scRes = await dbClient.query(`

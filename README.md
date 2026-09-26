@@ -22,7 +22,7 @@
 [![React 19](https://img.shields.io/badge/React-19.x-20232a?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Vitest](https://img.shields.io/badge/Tests-74%20Passed-22c55e?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Tests-87%20Passed-22c55e?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![Security Audited](https://img.shields.io/badge/Security-RBAC%20%2B%20ABAC%20%2B%20SHA--256-blueviolet?style=for-the-badge)](#-security--cryptographic-integrity)
 
 </div>
@@ -221,10 +221,11 @@ The repository enforces end-to-end integration and security suites verifying dat
 npm test
 ```
 
-### Verified Test Matrix (12 Suites / 74 Tests Passing)
+### Verified Test Matrix (13 Suites / 87 Tests Passing)
 ```
  ✓ tests/auth_sessions.test.ts (7 tests)
  ✓ tests/v3_migration.test.ts (17 tests)
+ ✓ tests/phase4_operational.test.ts (13 tests)
  ✓ tests/academic_core.test.ts (11 tests)
  ✓ tests/attendance_lifecycle.test.ts (6 tests)
  ✓ tests/timetable_conflicts.test.ts (7 tests)
@@ -236,8 +237,8 @@ npm test
  ✓ tests/rbac.test.ts (4 tests)
  ✓ tests/audit.test.ts (3 tests)
 
- Test Files  12 passed (12)
-      Tests  74 passed (74)
+ Test Files  13 passed (13)
+      Tests  87 passed (87)
 ```
 
 ---

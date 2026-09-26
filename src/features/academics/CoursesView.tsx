@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { useAcademics } from '../../hooks/useAcademics';
+import { GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Loader2 } from 'lucide-react';
 
-export const CoursesView: React.FC = () => {
-  const [selectedDept, setSelectedDept] = useState<string>('');
+interface CoursesViewProps {
+  filter?: GlobalFilterState;
+}
+
+export const CoursesView: React.FC<CoursesViewProps> = ({ filter }) => {
+  const [selectedDept, setSelectedDept] = useState<string>(filter?.departmentId || '');
+  const activeDept = selectedDept || filter?.departmentId || undefined;
   const { courses, departments, loading, error, refetch } = useAcademics({
-    departmentId: selectedDept || undefined,
+    departmentId: activeDept,
   });
 
   return (

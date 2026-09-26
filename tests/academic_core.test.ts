@@ -65,7 +65,7 @@ beforeAll(async () => {
 
 
 describe('Academic Core: Departments & Hierarchy', () => {
-  let createdDeptId: string;
+  let _createdDeptId: string;
 
   it('allows admin to create a new department', async () => {
     const res = await request(app)
@@ -80,7 +80,7 @@ describe('Academic Core: Departments & Hierarchy', () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.code).toBe('AERO');
-    createdDeptId = res.body.data.id;
+    _createdDeptId = res.body.data.id;
   });
 
   it('enforces department code uniqueness within institution', async () => {

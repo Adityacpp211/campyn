@@ -97,7 +97,7 @@ export class AttendanceRepository {
       UPDATE attendance_sessions
       SET is_locked = TRUE, status = 'LOCKED', locked_at = CURRENT_TIMESTAMP, locked_by = $2
       WHERE id = $1
-      RETURNING *
+      RETURNING id, is_locked, is_locked as "isLocked", status, locked_at, locked_at as "lockedAt", locked_by as "lockedBy"
     `, [sessionId, userId]);
 
     return res.rows[0] || null;

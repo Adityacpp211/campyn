@@ -151,15 +151,15 @@ export function App() {
       case 'dashboard':
         return <DashboardView currentUser={currentUser} onNavigate={setCurrentTab} />;
       case 'students':
-        return <StudentsView selectedStudentId={selectedStudentDossierId} />;
+        return <StudentsView selectedStudentId={selectedStudentDossierId} filter={globalFilter} />;
       case 'faculty':
-        return <FacultyView />;
+        return <FacultyView filter={globalFilter} />;
       case 'courses':
-        return <CoursesView />;
+        return <CoursesView filter={globalFilter} />;
       case 'timetable':
-        return <TimetableView />;
+        return <TimetableView filter={globalFilter} />;
       case 'attendance':
-        return <AttendanceView currentUser={currentUser} />;
+        return <AttendanceView currentUser={currentUser} filter={globalFilter} />;
       case 'assignments':
         return <AssignmentsView currentUser={currentUser} />;
       case 'exams':

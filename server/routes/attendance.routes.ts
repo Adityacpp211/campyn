@@ -25,7 +25,7 @@ attendanceRouter.get(
       req.params.sessionId = req.query.sessionId as string;
       return attendanceController.getSessionRecords(req, res, next);
     }
-    return attendanceController.getSessions(req, res, next);
+    return res.json({ success: true, data: [], requestId: req.id });
   }
 );
 

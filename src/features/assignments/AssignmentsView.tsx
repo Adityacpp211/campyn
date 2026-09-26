@@ -33,7 +33,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({ currentUser: _
     } else {
       setSubmissions([]);
     }
-  }, [selectedAssignment]);
+  }, [selectedAssignment, fetchSubmissions]);
 
   const handleOpenGrade = (sub: Submission) => {
     setGradingSubmission(sub);

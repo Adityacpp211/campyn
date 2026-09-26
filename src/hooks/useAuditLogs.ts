@@ -20,18 +20,20 @@ export function useAuditLogs(options: UseAuditLogsOptions = {}) {
     error?: string;
   }>({ loading: false, verified: false });
 
+  const { action, entity, actorEmail } = options;
+
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.audit.list(options);
+      const data = await api.audit.list({ action, entity, actorEmail });
       setLogs(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load audit trail');
     } finally {
       setLoading(false);
     }
-  }, [options.action, options.entity, options.actorEmail]);
+  }, [action, entity, actorEmail]);
 
   useEffect(() => {
     fetchLogs();

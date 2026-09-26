@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { useStudents } from '../../hooks/useStudents';
-import { Student } from '../../types';
+import { Student, GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 interface StudentsViewProps {
   selectedStudentId?: string;
+  filter?: GlobalFilterState;
 }
 
-export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId }) => {
+export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId, filter }) => {
   const [search, setSearch] = useState('');
-  const { students, pagination, loading, error } = useStudents({ search });
+  const { students, pagination, loading, error } = useStudents({
+    search,
+    departmentId: filter?.departmentId || undefined,
+    section: filter?.section || undefined,
+  });
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'marks' | 'fees' | 'timeline'>('overview');
 

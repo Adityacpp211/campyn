@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { config } from '../config';
-import { authRepository, UserRow } from '../repositories/auth.repository';
+import { authRepository } from '../repositories/auth.repository';
 import { createAuditLog } from './auditService';
 import { LoginInput, PasswordResetInput } from '../validators/auth.validator';
 

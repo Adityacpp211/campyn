@@ -33,7 +33,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
     } else {
       setMarks([]);
     }
-  }, [selectedExam]);
+  }, [selectedExam, fetchMarks]);
 
   const handleToggleLock = async (exam: Examination) => {
     if (!canLockPublish) {
