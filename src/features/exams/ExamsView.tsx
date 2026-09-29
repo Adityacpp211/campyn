@@ -4,12 +4,14 @@ import { useExams } from '../../hooks/useExams';
 import { Badge } from '../../components/ui/Badge';
 import { Award, Lock, ShieldCheck, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { can, PERMISSIONS } from '../../services/rbac';
+import { useToast } from '../../context/ToastContext';
 
 interface ExamsViewProps {
   currentUser: User;
 }
 
 export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
+  const { toast } = useToast();
   const { exams, loading: examsLoading, error: examsError, fetchMarks, toggleLock, refetch } = useExams();
   const [selectedExam, setSelectedExam] = useState<Examination | null>(null);
   const [marks, setMarks] = useState<MarksEntry[]>([]);
@@ -37,7 +39,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
 
   const handleToggleLock = async (exam: Examination) => {
     if (!canLockPublish) {
-      alert(`Access Denied: Role [${currentUser.role}] lacks [marks.lock_publish] permission.`);
+      toast.warning(`Access Denied: Role [${currentUser.role}] lacks [marks.lock_publish] permission.`);
       return;
     }
 
@@ -46,9 +48,13 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
       const res = await toggleLock(exam.id);
       if (res && res.data) {
         setSelectedExam((prev) => (prev ? { ...prev, isLocked: res.data.isLocked, isPublished: res.data.isPublished } : null));
+        toast.success(
+          res.data.isLocked ? 'Exam marks published and locked.' : 'Exam unlocked for grade entry.',
+          'Exam Lock Updated'
+        );
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to update exam lock status');
+      toast.error(err.message || 'Failed to update exam lock status');
     } finally {
       setIsTogglingLock(false);
     }

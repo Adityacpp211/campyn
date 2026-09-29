@@ -4,12 +4,14 @@ import { useApprovals } from '../../hooks/useApprovals';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 interface ApprovalsViewProps {
   currentUser: User;
 }
 
 export const ApprovalsView: React.FC<ApprovalsViewProps> = ({ currentUser: _currentUser }) => {
+  const { toast } = useToast();
   const { requests, pendingCount, loading, error, resolveApproval, refetch } = useApprovals();
   const [activeRequest, setActiveRequest] = useState<ApprovalRequest | null>(null);
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
@@ -24,16 +26,20 @@ export const ApprovalsView: React.FC<ApprovalsViewProps> = ({ currentUser: _curr
 
   const handleCommitDecision = async () => {
     if (!activeRequest || !decisionReason.trim()) {
-      alert('Mandatory justification reason required to resolve workflow.');
+      toast.warning('Mandatory justification reason required to resolve workflow.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       await resolveApproval(activeRequest.id, decision, decisionReason);
+      toast.success(
+        `Approval request #${activeRequest.id.substring(0, 8)} marked as ${decision.toUpperCase()}`,
+        'Workflow Resolved'
+      );
       setActiveRequest(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to resolve approval request');
+      toast.error(err.message || 'Failed to resolve approval request');
     } finally {
       setIsSubmitting(false);
     }

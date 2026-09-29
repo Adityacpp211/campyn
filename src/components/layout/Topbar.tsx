@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Bell, Shield } from 'lucide-react';
 import { User } from '../../types';
+import { useToast } from '../../context/ToastContext';
 
 interface TopbarProps {
   currentUser: User;
@@ -10,6 +11,7 @@ interface TopbarProps {
 }
 
 export const Topbar: React.FC<TopbarProps> = ({ currentUser, onOpenCommand, onOpenLogin }) => {
+  const { toast } = useToast();
   return (
     <header
       style={{
@@ -96,7 +98,12 @@ export const Topbar: React.FC<TopbarProps> = ({ currentUser, onOpenCommand, onOp
             position: 'relative',
             display: 'flex',
           }}
-          onClick={() => alert('Notification Center: Real-time PostgreSQL event stream active.')}
+          onClick={() =>
+            toast.info(
+              'All institutional systems operational. Real-time PostgreSQL event stream active.',
+              'Notification Center'
+            )
+          }
         >
           <Bell size={16} />
           <span

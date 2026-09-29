@@ -3,9 +3,12 @@ import { useAttendance } from '../../hooks/useAttendance';
 import { User, AttendanceRecord, GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { ShieldAlert, History, Lock, Unlock, Loader2, Calendar } from 'lucide-react';
+import { ShieldAlert, History, Lock, Unlock, Loader2, Calendar, Download, PlusCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { hasPermission, PERMISSIONS } from '../../services/rbac';
+import { TakeAttendanceModal } from './TakeAttendanceModal';
+import { exportToCsv } from '../../utils/exportCsv';
+import { useToast } from '../../context/ToastContext';
 
 interface AttendanceViewProps {
   currentUser: User;
@@ -13,6 +16,7 @@ interface AttendanceViewProps {
 }
 
 export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, filter: _filter }) => {
+  const { toast } = useToast();
   const {
     sessions,
     selectedSessionId,
@@ -25,8 +29,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
     updateRecord,
     lockSession,
     submitCorrection,
+    refetchSessions,
   } = useAttendance();
 
+  const [isTakeAttendanceOpen, setIsTakeAttendanceOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [newStatus, setNewStatus] = useState<'present' | 'absent' | 'late' | 'excused'>('present');
   const [editReason, setEditReason] = useState('');
@@ -50,8 +56,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
   };
 
   const handleCommitEdit = async () => {
-    if (!editingRecord || !editReason.trim()) {
-      alert('A valid justification reason (minimum 5 characters) is mandatory for auditable attendance edits.');
+    if (!editingRecord || !editReason.trim() || editReason.trim().length < 5) {
+      toast.warning('A valid justification reason (minimum 5 characters) is mandatory for auditable attendance edits.');
       return;
     }
 
@@ -60,14 +66,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
       if (isSessionLocked) {
         // If session is locked, submit as an official attendance correction request for governance approval
         await submitCorrection(editingRecord.id, newStatus, editReason);
-        alert('Attendance correction request successfully submitted to governance approvals ledger.');
+        toast.success('Attendance correction request successfully submitted to governance approvals ledger.', 'Correction Submitted');
       } else {
         // Direct update with cryptographic audit trail
         await updateRecord(editingRecord.id, newStatus, editReason);
+        toast.success(`Updated status of ${editingRecord.studentName} to ${newStatus.toUpperCase()}`, 'Record Updated');
       }
       setEditingRecord(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to update attendance record');
+      toast.error(err.message || 'Failed to update attendance record');
     } finally {
       setIsSubmitting(false);
     }
@@ -83,8 +90,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
     try {
       setIsLocking(true);
       await lockSession(selectedSessionId);
+      toast.success('Attendance session has been permanently locked and finalized.', 'Session Locked');
     } catch (err: any) {
-      alert(err.message || 'Failed to lock attendance session');
+      toast.error(err.message || 'Failed to lock attendance session');
     } finally {
       setIsLocking(false);
     }
@@ -96,7 +104,32 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
       setAuditLogs(logs);
       setShowHistory(true);
     } catch (err: any) {
-      alert(err.message || 'Failed to load audit trail');
+      toast.error(err.message || 'Failed to load audit trail');
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!records || records.length === 0) {
+      toast.warning('No attendance records available in active session to export.');
+      return;
+    }
+    try {
+      exportToCsv(
+        `CAMPES_Attendance_${selectedSession?.sessionDate || 'Session'}_${selectedSessionId?.slice(0, 8) || 'export'}`,
+        records,
+        [
+          { header: 'Student Name', accessor: (r) => r.studentName },
+          { header: 'Roll Number', accessor: (r) => r.studentRoll },
+          { header: 'Attendance Status', accessor: (r) => r.status.toUpperCase() },
+          { header: 'Session Date', accessor: () => selectedSession?.sessionDate || '' },
+          { header: 'Subject / Offering', accessor: () => `${selectedSession?.courseCode || ''} ${selectedSession?.courseName || ''}` },
+          { header: 'Section', accessor: () => selectedSession?.sectionName || '' },
+          { header: 'Session Locked', accessor: () => (selectedSession?.isLocked ? 'LOCKED' : 'OPEN') },
+        ]
+      );
+      toast.success(`Exported ${records.length} attendance records to CSV.`, 'Export Completed');
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed');
     }
   };
 
@@ -117,9 +150,17 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className="btn btn-outline btn-sm" onClick={openAuditHistory}>
-            <History size={14} /> Audit Trail
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Download size={13} />
+            Export CSV
+          </button>
+          <button className="btn btn-outline btn-sm" onClick={openAuditHistory} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <History size={13} /> Audit Trail
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setIsTakeAttendanceOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <PlusCircle size={13} />
+            Take Attendance
           </button>
         </div>
       </div>
@@ -438,6 +479,18 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, fil
           </div>
         </Modal>
       )}
+
+      {/* Take Attendance New Session Modal */}
+      <TakeAttendanceModal
+        isOpen={isTakeAttendanceOpen}
+        onClose={() => setIsTakeAttendanceOpen(false)}
+        onSessionCreated={async (newId) => {
+          await refetchSessions();
+          if (newId) {
+            setSelectedSessionId(newId);
+          }
+        }}
+      />
     </div>
   );
 };

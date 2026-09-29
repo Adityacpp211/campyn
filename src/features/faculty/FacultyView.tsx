@@ -1,17 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFaculty } from '../../hooks/useFaculty';
 import { GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
-import { Mail, Award, BookOpen, Loader2 } from 'lucide-react';
+import { Mail, Award, BookOpen, Loader2, Download, PlusCircle } from 'lucide-react';
+import { AssignCourseModal } from './AssignCourseModal';
+import { exportToCsv } from '../../utils/exportCsv';
+import { useToast } from '../../context/ToastContext';
 
 interface FacultyViewProps {
   filter?: GlobalFilterState;
 }
 
 export const FacultyView: React.FC<FacultyViewProps> = ({ filter }) => {
+  const { toast } = useToast();
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
   const { faculty, loading, error, refetch } = useFaculty({
     departmentId: filter?.departmentId || undefined,
   });
+
+  const handleExportCsv = () => {
+    if (!faculty || faculty.length === 0) {
+      toast.warning('No faculty records to export.');
+      return;
+    }
+    try {
+      exportToCsv(
+        `CAMPES_Faculty_${new Date().toISOString().split('T')[0]}`,
+        faculty,
+        [
+          { header: 'Employee ID', accessor: (f) => f.employeeId },
+          { header: 'Full Name', accessor: (f) => `${f.firstName} ${f.lastName}` },
+          { header: 'Email', accessor: (f) => f.email },
+          { header: 'Designation', accessor: (f) => f.designation },
+          { header: 'Qualification', accessor: (f) => f.qualification || '' },
+          { header: 'Specialization', accessor: (f) => f.specialization || '' },
+          {
+            header: 'Assigned Courses',
+            accessor: (f) => (Array.isArray(f.coursesHandled) ? f.coursesHandled.join('; ') : ''),
+          },
+        ]
+      );
+      toast.success(`Exported ${faculty.length} faculty records to CSV.`, 'Export Completed');
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed');
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -23,6 +56,17 @@ export const FacultyView: React.FC<FacultyViewProps> = ({ filter }) => {
           <p style={{ fontSize: '13px', color: 'var(--color-light-gray)' }}>
             Instructional faculty, course assignments, and research specializations
           </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Download size={13} />
+            Export CSV
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setIsAssignOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <PlusCircle size={13} />
+            Assign Course
+          </button>
         </div>
       </div>
 
@@ -75,6 +119,14 @@ export const FacultyView: React.FC<FacultyViewProps> = ({ filter }) => {
           ))}
         </div>
       )}
+
+      {/* Assign Course Modal */}
+      <AssignCourseModal
+        isOpen={isAssignOpen}
+        onClose={() => setIsAssignOpen(false)}
+        facultyList={faculty}
+        onAssigned={() => refetch()}
+      />
     </div>
   );
 };

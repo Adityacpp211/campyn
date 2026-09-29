@@ -3,7 +3,10 @@ import { useStudents } from '../../hooks/useStudents';
 import { Student, GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Loader2, Download, UserPlus } from 'lucide-react';
+import { EnrollStudentModal } from './EnrollStudentModal';
+import { exportToCsv } from '../../utils/exportCsv';
+import { useToast } from '../../context/ToastContext';
 
 interface StudentsViewProps {
   selectedStudentId?: string;
@@ -11,8 +14,10 @@ interface StudentsViewProps {
 }
 
 export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId, filter }) => {
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const { students, pagination, loading, error } = useStudents({
+  const [isEnrollOpen, setIsEnrollOpen] = useState(false);
+  const { students, pagination, loading, error, refetch } = useStudents({
     search,
     departmentId: filter?.departmentId || undefined,
     section: filter?.section || undefined,
@@ -28,6 +33,33 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId, f
     }
   }, [selectedStudentId, students]);
 
+  const handleExportCsv = () => {
+    if (!students || students.length === 0) {
+      toast.warning('No student records found in current view.');
+      return;
+    }
+    try {
+      exportToCsv(
+        `CAMPES_Students_${new Date().toISOString().split('T')[0]}`,
+        students,
+        [
+          { header: 'Roll Number', accessor: (s) => s.rollNumber },
+          { header: 'Full Name', accessor: (s) => `${s.firstName} ${s.lastName}` },
+          { header: 'Email', accessor: (s) => s.email },
+          { header: 'Program', accessor: (s) => s.programName || '' },
+          { header: 'Section', accessor: (s) => s.sectionName || '' },
+          { header: 'Attendance %', accessor: (s) => s.attendancePercentage ?? 'N/A' },
+          { header: 'CGPA', accessor: (s) => s.cgpa ?? 'N/A' },
+          { header: 'Pending Fees ($)', accessor: (s) => (s.pendingFees ?? 0) },
+          { header: 'Academic Status', accessor: (s) => s.academicStatus || 'active' },
+        ]
+      );
+      toast.success(`Exported ${students.length} student records to CSV.`, 'Export Completed');
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Header & Controls */}
@@ -41,8 +73,8 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId, f
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', width: '260px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: '240px' }}>
             <Search size={14} color="var(--color-medium-gray)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
             <input
               type="text"
@@ -53,8 +85,13 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId, f
               style={{ paddingLeft: '32px' }}
             />
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => alert('Student Export CSV generated.')}>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Download size={13} />
             Export CSV
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setIsEnrollOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <UserPlus size={13} />
+            Enroll Student
           </button>
         </div>
       </div>
@@ -362,6 +399,13 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ selectedStudentId, f
           )}
         </Modal>
       )}
+
+      {/* Enroll Student Modal */}
+      <EnrollStudentModal
+        isOpen={isEnrollOpen}
+        onClose={() => setIsEnrollOpen(false)}
+        onStudentCreated={refetch}
+      />
     </div>
   );
 };

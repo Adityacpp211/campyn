@@ -2,21 +2,65 @@ import React, { useState } from 'react';
 import { useTimetable } from '../../hooks/useTimetable';
 import { GlobalFilterState } from '../../types';
 import { Badge } from '../../components/ui/Badge';
-import { AlertTriangle, Clock, MapPin, User, Loader2 } from 'lucide-react';
+import { AlertTriangle, Clock, MapPin, User, Loader2, Download, CalendarPlus, Trash2 } from 'lucide-react';
+import { ScheduleSlotModal } from './ScheduleSlotModal';
+import { exportToCsv } from '../../utils/exportCsv';
+import { useToast } from '../../context/ToastContext';
 
 interface TimetableViewProps {
   filter?: GlobalFilterState;
 }
 
 export const TimetableView: React.FC<TimetableViewProps> = ({ filter }) => {
+  const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState<string>('All');
-  const days = ['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const [isScheduleOpen, setIsScheduleOpen] = useState<boolean>(false);
+  const days = ['All', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  const { slots: allSlots, loading, error, conflictCount, refetch } = useTimetable();
+  const { slots: allSlots, loading, error, conflictCount, refetch, deleteSlot } = useTimetable();
 
   const slots = selectedDay === 'All'
     ? allSlots
     : allSlots.filter((s) => s.day === selectedDay || s.dayOfWeek === selectedDay);
+
+  const handleExportCsv = () => {
+    if (!slots || slots.length === 0) {
+      toast.warning('No timetable slots available to export.');
+      return;
+    }
+    try {
+      exportToCsv(
+        `CAMPES_Timetable_${selectedDay}_${new Date().toISOString().split('T')[0]}`,
+        slots,
+        [
+          { header: 'Day', accessor: (s) => s.day || s.dayOfWeek || '' },
+          { header: 'Time Slot', accessor: (s) => s.timeSlot },
+          { header: 'Course Code', accessor: (s) => s.courseCode },
+          { header: 'Course Name', accessor: (s) => s.courseName },
+          { header: 'Faculty', accessor: (s) => s.facultyName || 'N/A' },
+          { header: 'Room', accessor: (s) => s.roomNumber },
+          { header: 'Section', accessor: (s) => s.sectionName },
+          { header: 'Conflict Detected', accessor: (s) => (s.hasConflict ? 'YES' : 'NO') },
+          { header: 'Conflict Note', accessor: (s) => s.conflictDetails || '' },
+        ]
+      );
+      toast.success(`Exported ${slots.length} timetable slots to CSV.`, 'Export Completed');
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed');
+    }
+  };
+
+  const handleDeleteSlot = async (slotId: string, courseCode: string) => {
+    const confirmDel = window.confirm(`Are you sure you want to remove timetable slot for ${courseCode}?`);
+    if (!confirmDel) return;
+
+    try {
+      await deleteSlot(slotId);
+      toast.success(`Removed timetable slot for ${courseCode}`, 'Slot Removed');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove timetable slot');
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -30,24 +74,35 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ filter }) => {
           </p>
         </div>
 
-        {conflictCount > 0 && (
-          <div
-            style={{
-              padding: '6px 12px',
-              backgroundColor: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '12px',
-              color: '#FFA4A4',
-            }}
-          >
-            <AlertTriangle size={15} />
-            <span>{conflictCount} Scheduling Conflict Detected</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {conflictCount > 0 && (
+            <div
+              style={{
+                padding: '6px 12px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '12px',
+                color: '#FFA4A4',
+              }}
+            >
+              <AlertTriangle size={15} />
+              <span>{conflictCount} Scheduling Conflict Detected</span>
+            </div>
+          )}
+
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Download size={13} />
+            Export Schedule CSV
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setIsScheduleOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <CalendarPlus size={13} />
+            Schedule Class Slot
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -148,10 +203,58 @@ export const TimetableView: React.FC<TimetableViewProps> = ({ filter }) => {
                   <span>{slot.conflictDetails}</span>
                 </div>
               )}
+
+              {/* Slot Actions */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  marginTop: '12px',
+                  paddingTop: '8px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSlot(slot.id, slot.courseCode)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: slot.hasConflict ? '#f87171' : 'var(--color-light-gray)',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    padding: '3px 6px',
+                    borderRadius: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ef4444';
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = slot.hasConflict ? '#f87171' : 'var(--color-light-gray)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  title="Remove timetable slot"
+                >
+                  <Trash2 size={12} />
+                  <span>{slot.hasConflict ? 'Resolve Clash (Delete)' : 'Remove Slot'}</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Schedule Class Slot Modal */}
+      <ScheduleSlotModal
+        isOpen={isScheduleOpen}
+        onClose={() => setIsScheduleOpen(false)}
+        onSlotCreated={() => refetch()}
+      />
     </div>
   );
 };

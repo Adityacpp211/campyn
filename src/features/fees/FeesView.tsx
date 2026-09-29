@@ -3,14 +3,17 @@ import { useFees } from '../../hooks/useFees';
 import { User, FeeDue, FeeTransaction } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
-import { RotateCcw, Loader2 } from 'lucide-react';
+import { RotateCcw, Loader2, Download } from 'lucide-react';
 import { hasPermission, PERMISSIONS } from '../../services/rbac';
+import { exportToCsv } from '../../utils/exportCsv';
+import { useToast } from '../../context/ToastContext';
 
 interface FeesViewProps {
   currentUser: User;
 }
 
 export const FeesView: React.FC<FeesViewProps> = ({ currentUser }) => {
+  const { toast } = useToast();
   const { dues, transactions, loading, error, collectPayment, processRefund } = useFees();
   const [selectedDue, setSelectedDue] = useState<FeeDue | null>(null);
   const [payAmount, setPayAmount] = useState<number>(0);
@@ -32,9 +35,13 @@ export const FeesView: React.FC<FeesViewProps> = ({ currentUser }) => {
     try {
       setIsProcessing(true);
       await collectPayment(selectedDue.id, Number(payAmount), payMode);
+      toast.success(
+        `Successfully collected $${payAmount} for ${selectedDue.title} from ${selectedDue.studentName}`,
+        'Payment Recorded'
+      );
       setSelectedDue(null);
     } catch (err: any) {
-      alert(err.message || 'Payment processing failed');
+      toast.error(err.message || 'Payment processing failed');
     } finally {
       setIsProcessing(false);
     }
@@ -42,18 +49,46 @@ export const FeesView: React.FC<FeesViewProps> = ({ currentUser }) => {
 
   const handleCommitRefund = async () => {
     if (!refundTxn || !refundReason.trim()) {
-      alert('Mandatory justification reason is required for transaction reversal.');
+      toast.warning('Mandatory justification reason is required for transaction reversal.');
       return;
     }
 
     try {
       setIsProcessing(true);
       await processRefund(refundTxn.id, refundReason);
+      toast.success(
+        `Transaction ${refundTxn.receiptNumber || refundTxn.reference} refunded and credited to balance`,
+        'Refund Completed'
+      );
       setRefundTxn(null);
     } catch (err: any) {
-      alert(err.message || 'Refund reversal failed');
+      toast.error(err.message || 'Refund reversal failed');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!transactions || transactions.length === 0) {
+      toast.warning('No fee transactions found to export.');
+      return;
+    }
+    try {
+      exportToCsv(
+        `CAMPES_Fee_Ledger_${new Date().toISOString().split('T')[0]}`,
+        transactions,
+        [
+          { header: 'Receipt No', accessor: (t) => t.receiptNumber || t.reference },
+          { header: 'Student Name', accessor: (t) => t.studentName },
+          { header: 'Amount ($)', accessor: (t) => t.amount },
+          { header: 'Payment Mode', accessor: (t) => t.paymentMode.toUpperCase() },
+          { header: 'Status', accessor: (t) => t.status.toUpperCase() },
+          { header: 'Transaction Date', accessor: (t) => new Date(t.timestamp).toLocaleDateString() },
+        ]
+      );
+      toast.success(`Exported ${transactions.length} fee transactions to CSV.`, 'Export Completed');
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed');
     }
   };
 
@@ -74,6 +109,11 @@ export const FeesView: React.FC<FeesViewProps> = ({ currentUser }) => {
             Strict double-entry PostgreSQL ledger with non-destructive audit reversals
           </p>
         </div>
+
+        <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Download size={13} />
+          Export Ledger CSV
+        </button>
       </div>
 
       {error && (
