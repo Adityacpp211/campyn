@@ -12,7 +12,7 @@ export function useExams() {
     setError(null);
     try {
       const data = await api.exams.list();
-      setExams(Array.isArray(data) ? data : []);
+      setExams(Array.isArray(data) ? data : (data as any)?.data || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load examinations');
     } finally {
@@ -24,16 +24,31 @@ export function useExams() {
     fetchExams();
   }, [fetchExams]);
 
+  const createExam = async (data: {
+    semesterId: string;
+    title: string;
+    examType: 'internal' | 'midterm' | 'final' | 'lab';
+  }) => {
+    const res = await api.exams.create(data);
+    await fetchExams();
+    return res;
+  };
+
   const fetchMarks = useCallback(async (examId: string): Promise<MarksEntry[]> => {
     try {
       const res = await api.exams.marks(examId);
-      return Array.isArray(res) ? res : [];
+      return Array.isArray(res) ? res : (res as any)?.data || [];
     } catch {
       return [];
     }
   }, []);
 
-  const updateMarks = async (id: string, marksObtained: number, grade: string, reason: string) => {
+  const populateRoster = async (examId: string, data: { courseId: string; maxMarks?: number }) => {
+    const res = await api.exams.populateRoster(examId, data);
+    return res;
+  };
+
+  const updateMarks = async (id: string, marksObtained: number, grade?: string, reason?: string) => {
     return await api.exams.updateMarks(id, marksObtained, grade, reason);
   };
 
@@ -47,7 +62,9 @@ export function useExams() {
     exams,
     loading,
     error,
+    createExam,
     fetchMarks,
+    populateRoster,
     updateMarks,
     toggleLock,
     refetch: fetchExams,

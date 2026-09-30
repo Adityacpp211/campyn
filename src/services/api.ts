@@ -401,11 +401,33 @@ class ApiClient {
 
   // Assignments
   public assignments = {
-    list: async (): Promise<Assignment[]> => {
-      return this.request<Assignment[]>('/assignments');
+    list: async (params?: { sectionCourseId?: string; courseId?: string }): Promise<Assignment[]> => {
+      const query = new URLSearchParams();
+      if (params?.sectionCourseId) query.append('sectionCourseId', params.sectionCourseId);
+      if (params?.courseId) query.append('courseId', params.courseId);
+      const qStr = query.toString() ? `?${query.toString()}` : '';
+      return this.request<Assignment[]>(`/assignments${qStr}`);
+    },
+    create: async (data: { sectionCourseId: string; title: string; description?: string; maxMarks: number; dueDate: string; allowLate?: boolean }): Promise<Assignment> => {
+      return this.request<Assignment>('/assignments', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     },
     submissions: async (asgId: string): Promise<any[]> => {
       return this.request<any[]>(`/assignments/${asgId}/submissions`);
+    },
+    submit: async (asgId: string, data: { fileUrl?: string; notes?: string }): Promise<any> => {
+      return this.request(`/assignments/${asgId}/submit`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    grade: async (submissionId: string, data: { marksAwarded: number; feedback?: string; reason: string }): Promise<any> => {
+      return this.request(`/assignments/submissions/${submissionId}/grade`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
     },
   };
 
@@ -414,13 +436,25 @@ class ApiClient {
     list: async (): Promise<Examination[]> => {
       return this.request<Examination[]>('/exams');
     },
+    create: async (data: { semesterId: string; title: string; examType: 'internal' | 'midterm' | 'final' | 'lab' }): Promise<Examination> => {
+      return this.request<Examination>('/exams', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
     marks: async (examId: string): Promise<MarksEntry[]> => {
       return this.request<MarksEntry[]>(`/exams/${examId}/marks`);
+    },
+    populateRoster: async (examId: string, data: { courseId: string; maxMarks?: number }): Promise<any> => {
+      return this.request(`/exams/${examId}/populate-roster`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     },
     toggleLock: async (id: string): Promise<any> => {
       return this.request(`/exams/${id}/lock`, { method: 'POST' });
     },
-    updateMarks: async (id: string, marksObtained: number, grade: string, reason: string): Promise<any> => {
+    updateMarks: async (id: string, marksObtained: number, grade?: string, reason?: string): Promise<any> => {
       return this.request(`/exams/marks/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ marksObtained, grade, reason }),

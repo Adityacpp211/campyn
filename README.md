@@ -221,11 +221,13 @@ The repository enforces end-to-end integration and security suites verifying dat
 npm test
 ```
 
-### Verified Test Matrix (13 Suites / 87 Tests Passing)
+### Verified Test Matrix (15 Suites / 106 Tests Passing)
 ```
  ✓ tests/auth_sessions.test.ts (7 tests)
  ✓ tests/v3_migration.test.ts (17 tests)
  ✓ tests/phase4_operational.test.ts (13 tests)
+ ✓ tests/assignments_lifecycle.test.ts (9 tests)
+ ✓ tests/examinations_lifecycle.test.ts (10 tests)
  ✓ tests/academic_core.test.ts (11 tests)
  ✓ tests/attendance_lifecycle.test.ts (6 tests)
  ✓ tests/timetable_conflicts.test.ts (7 tests)
@@ -237,8 +239,8 @@ npm test
  ✓ tests/rbac.test.ts (4 tests)
  ✓ tests/audit.test.ts (3 tests)
 
- Test Files  13 passed (13)
-      Tests  87 passed (87)
+ Test Files  15 passed (15)
+      Tests  106 passed (106)
 ```
 
 ---
@@ -271,6 +273,15 @@ npm test
 | `GET` | `/api/v1/attendance/sessions` | Lecture attendance sessions with lock status | `attendance.read` |
 | `POST` | `/api/v1/attendance/sessions` | Batch marks students present/absent/late | `attendance.record` |
 | `GET` | `/api/v1/timetable` | Dynamic schedule with server conflict markers | `timetable.read` |
+| `GET` | `/api/v1/assignments` | Coursework assignments with real submission counts | `assignments.read` |
+| `POST` | `/api/v1/assignments` | Create assignment deliverable with due date | `assignments.create` |
+| `POST` | `/api/v1/assignments/:id/submit` | Student turns in assignment solution | `assignments.submit` |
+| `PUT` | `/api/v1/assignments/submissions/:id/grade` | Grade submission with cryptographic audit trail | `assignments.grade` |
+| `GET` | `/api/v1/exams` | Official examination register sessions | `marks.read` |
+| `POST` | `/api/v1/exams` | Schedule examination session | `marks.lock_publish` |
+| `POST` | `/api/v1/exams/:id/populate-roster` | Auto-populate marks entries for enrolled students | `marks.enter` |
+| `PUT` | `/api/v1/exams/marks/:id` | Enter/revise marks with mandatory justification | `marks.enter` |
+| `POST` | `/api/v1/exams/:id/lock` | Lock and publish examination results | `marks.lock_publish` |
 | `GET` | `/api/v1/approvals` | Pending governance workflow tickets | `approvals.manage` |
 | `POST` | `/api/v1/approvals/:id/resolve` | Decides request (approves/rejects with audit) | `approvals.manage` |
 | `GET` | `/api/v1/audit/verify-chain` | Cryptographic SHA-256 ledger integrity audit | `audit.read` |

@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { User, Examination, MarksEntry } from '../../types';
 import { useExams } from '../../hooks/useExams';
 import { Badge } from '../../components/ui/Badge';
-import { Award, Lock, ShieldCheck, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
-import { can, PERMISSIONS } from '../../services/rbac';
+import { Award, Lock, ShieldCheck, AlertCircle, Loader2, RefreshCw, PlusCircle, Download, Edit3, UserCheck } from 'lucide-react';
+import { hasPermission, PERMISSIONS } from '../../services/rbac';
 import { useToast } from '../../context/ToastContext';
+import { exportToCsv } from '../../utils/exportCsv';
+import { CreateExamModal } from './CreateExamModal';
+import { EnterMarksModal } from './EnterMarksModal';
 
 interface ExamsViewProps {
   currentUser: User;
@@ -12,13 +15,27 @@ interface ExamsViewProps {
 
 export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
   const { toast } = useToast();
-  const { exams, loading: examsLoading, error: examsError, fetchMarks, toggleLock, refetch } = useExams();
+  const {
+    exams,
+    loading: examsLoading,
+    error: examsError,
+    fetchMarks,
+    updateMarks,
+    toggleLock,
+    refetch,
+  } = useExams();
+
   const [selectedExam, setSelectedExam] = useState<Examination | null>(null);
   const [marks, setMarks] = useState<MarksEntry[]>([]);
   const [marksLoading, setMarksLoading] = useState(false);
   const [isTogglingLock, setIsTogglingLock] = useState(false);
 
-  const canLockPublish = can(currentUser, PERMISSIONS.MARKS_LOCK_PUBLISH);
+  // Modals
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<MarksEntry | null>(null);
+
+  const canLockPublish = hasPermission(currentUser.role, PERMISSIONS.MARKS_LOCK_PUBLISH);
+  const canEnter = hasPermission(currentUser.role, PERMISSIONS.MARKS_ENTER);
 
   useEffect(() => {
     if (exams.length > 0 && !selectedExam) {
@@ -49,7 +66,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
       if (res && res.data) {
         setSelectedExam((prev) => (prev ? { ...prev, isLocked: res.data.isLocked, isPublished: res.data.isPublished } : null));
         toast.success(
-          res.data.isLocked ? 'Exam marks published and locked.' : 'Exam unlocked for grade entry.',
+          res.data.isLocked ? 'Exam marks published and locked in PostgreSQL ledger.' : 'Exam unlocked for grade revisions.',
           'Exam Lock Updated'
         );
       }
@@ -60,8 +77,43 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
     }
   };
 
+  const handleSaveMarks = async (id: string, marksObtained: number, grade: string, reason: string) => {
+    await updateMarks(id, marksObtained, grade, reason);
+    if (selectedExam) {
+      const refreshed = await fetchMarks(selectedExam.id);
+      setMarks(refreshed);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!marks || marks.length === 0) {
+      toast.warning('No marks records found to export.');
+      return;
+    }
+    try {
+      exportToCsv(
+        `CAMPES_Exam_Marks_${selectedExam?.title.replace(/\s+/g, '_') || 'Exam'}_${new Date().toISOString().split('T')[0]}`,
+        marks,
+        [
+          { header: 'Roll Number', accessor: (m) => m.studentRoll },
+          { header: 'Student Name', accessor: (m) => m.studentName },
+          { header: 'Course Code', accessor: (m) => m.courseCode || '' },
+          { header: 'Marks Obtained', accessor: (m) => m.marksObtained },
+          { header: 'Maximum Marks', accessor: (m) => m.maxMarks },
+          { header: 'Percentage (%)', accessor: (m) => ((m.marksObtained / m.maxMarks) * 100).toFixed(1) },
+          { header: 'Letter Grade', accessor: (m) => m.grade },
+          { header: 'Verification Status', accessor: (m) => (m.verified ? 'VERIFIED' : 'PROVISIONAL') },
+        ]
+      );
+      toast.success(`Exported ${marks.length} marks entries to CSV.`, 'Export Completed');
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Header & Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--color-white)' }}>
@@ -72,17 +124,29 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
           </p>
         </div>
 
-        {selectedExam && canLockPublish && (
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {marks.length > 0 && (
+            <button className="btn btn-secondary btn-sm" onClick={handleExportCsv}>
+              <Download size={13} /> Export Grade Register
+            </button>
+          )}
+
+          {selectedExam && canLockPublish && (
             <button
-              className={`btn btn-sm ${selectedExam.isLocked ? 'btn-danger' : 'btn-primary'}`}
+              className={`btn btn-sm ${selectedExam.isLocked ? 'btn-danger' : 'btn-secondary'}`}
               onClick={() => handleToggleLock(selectedExam)}
               disabled={isTogglingLock}
             >
               <Lock size={13} /> {isTogglingLock ? 'Updating...' : selectedExam.isLocked ? 'Unlock Results' : 'Lock & Publish Results'}
             </button>
-          </div>
-        )}
+          )}
+
+          {canLockPublish && (
+            <button className="btn btn-primary btn-sm" onClick={() => setIsCreateOpen(true)}>
+              <PlusCircle size={13} /> Schedule Examination
+            </button>
+          )}
+        </div>
       </div>
 
       {examsError && (
@@ -102,6 +166,11 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
       ) : exams.length === 0 ? (
         <div className="surface-card" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-light-gray)' }}>
           <p>No examination sessions recorded for the active academic calendar.</p>
+          {canLockPublish && (
+            <button className="btn btn-primary btn-sm" style={{ marginTop: '12px' }} onClick={() => setIsCreateOpen(true)}>
+              <PlusCircle size={13} /> Schedule First Examination
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -188,6 +257,7 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
                       <th>Maximum</th>
                       <th>Grade</th>
                       <th>Audit Status</th>
+                      {canEnter && !selectedExam.isLocked && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -214,6 +284,17 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
                             {selectedExam.isLocked ? 'Immutable' : 'Editable'}
                           </Badge>
                         </td>
+                        {canEnter && !selectedExam.isLocked && (
+                          <td>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => setEditingEntry(m)}
+                              title="Enter / Edit Marks"
+                            >
+                              <Edit3 size={12} /> Grade
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -223,6 +304,21 @@ export const ExamsView: React.FC<ExamsViewProps> = ({ currentUser }) => {
           )}
         </>
       )}
+
+      {/* Examination Creation Modal */}
+      <CreateExamModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={() => refetch()}
+      />
+
+      {/* Grade Entry Modal */}
+      <EnterMarksModal
+        isOpen={!!editingEntry}
+        onClose={() => setEditingEntry(null)}
+        entry={editingEntry}
+        onSaved={handleSaveMarks}
+      />
     </div>
   );
 };

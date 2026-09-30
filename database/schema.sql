@@ -138,6 +138,7 @@ CREATE TABLE user_sessions (
     ip_address VARCHAR(45),
     user_agent TEXT,
     expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

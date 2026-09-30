@@ -192,8 +192,9 @@ export async function seedDatabase(): Promise<void> {
       COLLEGE_ADMIN: [
         'students.read', 'students.create', 'students.update', 'faculty.read', 'faculty.manage',
         'departments.manage', 'courses.manage', 'attendance.read', 'attendance.approve',
-        'timetable.read', 'timetable.edit', 'assignments.read', 'marks.read', 'marks.verify',
-        'marks.lock_publish', 'fees.read', 'fees.collect', 'fees.refund', 'approvals.manage', 'audit.read'
+        'timetable.read', 'timetable.edit', 'assignments.read', 'assignments.create', 'assignments.grade',
+        'marks.read', 'marks.enter', 'marks.verify', 'marks.lock_publish',
+        'fees.read', 'fees.collect', 'fees.refund', 'approvals.manage', 'audit.read'
       ],
       PRINCIPAL: [
         'students.read', 'faculty.read', 'attendance.read', 'attendance.approve',
@@ -439,6 +440,39 @@ export async function seedDatabase(): Promise<void> {
         INSERT INTO marks_entries (examination_id, course_id, student_id, marks_obtained, max_marks, grade, entered_by)
         VALUES ($1, $2, $3, $4, 50, $5, $6)
       `, [examId, courseMap['CS301'], studentMap[m.roll], m.marks, m.grade, facultyJenkinsId]);
+    }
+
+    // 13.5. Assignments & Submissions
+    if (secCourseMap['CS301']) {
+      const asg1Res = await tx.query(`
+        INSERT INTO assignments (section_course_id, title, description, max_marks, due_date, allow_late)
+        VALUES ($1, 'Problem Set 3: Red-Black Trees & B-Trees', 'Implement self-balancing search trees with logarithmic invariant proofs and benchmark performance.', 50, '2026-10-05 23:59:59+00', false)
+        RETURNING id
+      `, [secCourseMap['CS301']]);
+      const asg1Id = asg1Res.rows[0].id;
+
+      // Submissions for assignment 1
+      const sub1Data = [
+        { roll: 'CSE-24-001', late: false, marks: 46, feedback: 'Exemplary tree rotation verification' },
+        { roll: 'CSE-24-002', late: false, marks: 42, feedback: 'Accurate proofs, minor edge case omission' },
+        { roll: 'CSE-24-003', late: true, marks: 38, feedback: 'Late submission verified via infirmary slip' },
+        { roll: 'CSE-24-004', late: false, marks: 44, feedback: 'Clean modular implementation' },
+        { roll: 'CSE-24-005', late: false, marks: null, feedback: null },
+      ];
+
+      for (const s of sub1Data) {
+        await tx.query(`
+          INSERT INTO assignment_submissions (assignment_id, student_id, file_url, is_late, marks_awarded, feedback, graded_by, graded_at)
+          VALUES ($1, $2, 'https://git.campus.edu/submissions/ps3.tar.gz', $3, $4, $5, $6, $7)
+        `, [asg1Id, studentMap[s.roll], s.late, s.marks, s.feedback, s.marks !== null ? facultyJenkinsId : null, s.marks !== null ? '2026-09-24 14:00:00+00' : null]);
+      }
+    }
+
+    if (secCourseMap['CS302']) {
+      await tx.query(`
+        INSERT INTO assignments (section_course_id, title, description, max_marks, due_date, allow_late)
+        VALUES ($1, 'Kernel Memory Allocator Lab', 'Design a buddy allocator in C with page-level coalescing and fragmentation telemetry.', 100, '2026-10-12 23:59:59+00', true)
+      `, [secCourseMap['CS302']]);
     }
 
     // 14. Timetable Slots
