@@ -22,10 +22,12 @@ if (isProduction) {
 
 export const config = {
   port: parseInt(process.env.PORT || '3001', 10),
+  host: process.env.HOST || '0.0.0.0',
   nodeEnv,
   isProduction,
   databaseUrl,
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
   auditSalt,
+  corsOrigin: process.env.CORS_ORIGIN || '*',
 };

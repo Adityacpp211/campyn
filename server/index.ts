@@ -20,6 +20,7 @@ import { dashboardRouter } from './routes/dashboard.routes';
 import { getDb, dbClient } from './db';
 import { runMigrations } from './db/migrate';
 import { structuredLogger } from './middleware/logger';
+import os from 'os';
 
 export const app = express();
 
@@ -27,7 +28,10 @@ export const app = express();
 app.use(helmet({
   contentSecurityPolicy: false, // Allow development inline assets
 }));
-app.use(cors());
+app.use(cors({
+  origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(',').map(s => s.trim()),
+  credentials: true,
+}));
 app.use(express.json());
 app.use(requestIdMiddleware);
 app.use(structuredLogger);
@@ -92,8 +96,22 @@ export async function startServer(): Promise<any> {
   await runMigrations();
 
   return new Promise((resolve) => {
-    const server = app.listen(config.port, () => {
-      console.log(`[CAMPYN V2 API] Running on http://localhost:${config.port} (${config.nodeEnv})`);
+    const server = app.listen(config.port, config.host, () => {
+      console.log(`[CAMPYN V2 API] Running on http://${config.host}:${config.port} (${config.nodeEnv})`);
+
+      // Show LAN address for multi-device access
+      if (config.host === '0.0.0.0') {
+        const nets = os.networkInterfaces();
+        for (const name of Object.keys(nets)) {
+          for (const net of nets[name]) {
+            if (net.family === 'IPv4' && !net.internal) {
+              console.log(`[CAMPYN V2 API] LAN access: http://${net.address}:${config.port}`);
+            }
+          }
+        }
+        console.log(`[CAMPYN V2 API] To expose online, run: npx cloudflared tunnel --url http://localhost:${config.port}`);
+      }
+
       resolve(server);
     });
   });

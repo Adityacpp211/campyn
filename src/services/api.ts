@@ -18,17 +18,25 @@ import {
 } from '../types';
 
 const getApiBase = (): string => {
+  // If an explicit API URL is configured, always use it
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (envUrl) return envUrl;
+
   if (typeof window !== 'undefined') {
+    // Electron / file:// protocol — need absolute URL to the server
     if (
       window.location.protocol === 'file:' ||
       window.location.origin === 'null' ||
-      !window.location.host ||
-      window.location.hostname === 'localhost' && window.location.port !== '5173'
+      !window.location.host
     ) {
-      return (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001/api/v1';
+      return 'http://localhost:3001/api/v1';
     }
+
+    // Browser access (works for localhost dev, LAN IP, and tunnel URLs)
+    // Always use relative URL so the browser sends to the same origin
+    return '/api/v1';
   }
-  return (import.meta.env.VITE_API_URL as string) || '/api/v1';
+  return '/api/v1';
 };
 
 const API_BASE = getApiBase();
