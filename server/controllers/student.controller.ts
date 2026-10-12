@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { studentService } from '../services/student.service';
 import {
   studentQuerySchema,
@@ -25,7 +26,7 @@ export class StudentController {
 
   async getStudentById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const student = await studentService.getStudentById(req.user!, req.params.id);
+      const student = await studentService.getStudentById(req.user!, req.params.id as string);
       res.json({
         success: true,
         data: student,
@@ -67,7 +68,7 @@ export class StudentController {
   async transferSection(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = sectionTransferSchema.parse(req.body);
-      const data = await studentService.transferSection(req.user!, req.params.id, validated);
+      const data = await studentService.transferSection(req.user!, req.params.id as string, validated);
       res.json({
         success: true,
         message: 'Student section transferred and course enrollments updated',
@@ -82,7 +83,7 @@ export class StudentController {
   async updateStudent(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = updateStudentSchema.parse(req.body);
-      const data = await studentService.updateStudent(req.user!, req.params.id, validated);
+      const data = await studentService.updateStudent(req.user!, req.params.id as string, validated);
       res.json({
         success: true,
         message: 'Student profile updated successfully',

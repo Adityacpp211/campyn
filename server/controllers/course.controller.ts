@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { courseService } from '../services/course.service';
 import { courseCreateSchema, courseUpdateSchema, courseQuerySchema } from '../validators/course.validator';
 
@@ -20,7 +21,7 @@ export class CourseController {
 
   async getCourseById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await courseService.getCourseById(req.params.id, req.user!.institutionId);
+      const data = await courseService.getCourseById(req.params.id as string, req.user!.institutionId);
       res.json({ success: true, data, requestId: req.id });
     } catch (err) {
       next(err);
@@ -40,7 +41,7 @@ export class CourseController {
   async updateCourse(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = courseUpdateSchema.parse(req.body);
-      const data = await courseService.updateCourse(req.user!, req.params.id, validated);
+      const data = await courseService.updateCourse(req.user!, req.params.id as string, validated);
       res.json({ success: true, message: 'Course updated successfully', data, requestId: req.id });
     } catch (err) {
       next(err);
@@ -49,7 +50,7 @@ export class CourseController {
 
   async archiveCourse(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await courseService.archiveCourse(req.user!, req.params.id);
+      await courseService.archiveCourse(req.user!, req.params.id as string);
       res.json({ success: true, message: 'Course archived successfully', requestId: req.id });
     } catch (err) {
       next(err);

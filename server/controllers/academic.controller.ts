@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { academicService } from '../services/academic.service';
 import {
   departmentCreateSchema,
@@ -22,7 +23,7 @@ export class AcademicController {
 
   async getDepartmentById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await academicService.getDepartmentById(req.params.id, req.user!.institutionId);
+      const data = await academicService.getDepartmentById(req.params.id as string, req.user!.institutionId);
       res.json({ success: true, data, requestId: req.id });
     } catch (err) {
       next(err);
@@ -31,7 +32,7 @@ export class AcademicController {
 
   async getDepartmentStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await academicService.getDepartmentStats(req.params.id, req.user!.institutionId);
+      const data = await academicService.getDepartmentStats(req.params.id as string, req.user!.institutionId);
       res.json({ success: true, data, requestId: req.id });
     } catch (err) {
       next(err);
@@ -51,7 +52,7 @@ export class AcademicController {
   async updateDepartment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = departmentUpdateSchema.parse(req.body);
-      const data = await academicService.updateDepartment(req.user!, req.params.id, validated);
+      const data = await academicService.updateDepartment(req.user!, req.params.id as string, validated);
       res.json({ success: true, message: 'Department updated successfully', data, requestId: req.id });
     } catch (err) {
       next(err);
@@ -60,7 +61,7 @@ export class AcademicController {
 
   async archiveDepartment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await academicService.archiveDepartment(req.user!, req.params.id);
+      await academicService.archiveDepartment(req.user!, req.params.id as string);
       res.json({ success: true, message: 'Department archived successfully', requestId: req.id });
     } catch (err) {
       next(err);

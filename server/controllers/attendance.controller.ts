@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { attendanceService } from '../services/attendance.service';
 import {
   recordAttendanceSchema,
@@ -33,7 +34,7 @@ export class AttendanceController {
 
   async getSessionRecords(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const records = await attendanceService.getSessionRecords(req.params.sessionId);
+      const records = await attendanceService.getSessionRecords(req.params.sessionId as string);
       res.json({
         success: true,
         data: records,
@@ -67,7 +68,7 @@ export class AttendanceController {
     try {
       const locked = await attendanceService.lockSession(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         req.ip || '127.0.0.1'
       );
       res.json({
@@ -86,7 +87,7 @@ export class AttendanceController {
       const validated = updateAttendanceRecordSchema.parse(req.body);
       const updated = await attendanceService.updateRecord(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         validated.status,
         validated.reason,
         req.ip || '127.0.0.1'

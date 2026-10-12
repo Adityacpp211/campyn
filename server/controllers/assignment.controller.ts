@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { assignmentService } from '../services/assignment.service';
 import {
   createAssignmentSchema,
@@ -45,7 +46,7 @@ export class AssignmentController {
 
   async getSubmissions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const submissions = await assignmentService.getSubmissions(req.user!, req.params.id);
+      const submissions = await assignmentService.getSubmissions(req.user!, req.params.id as string);
       res.json({
         success: true,
         data: submissions,
@@ -61,7 +62,7 @@ export class AssignmentController {
       const validated = submitAssignmentSchema.parse(req.body);
       const submission = await assignmentService.submitAssignment(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         validated,
         req.ip || '127.0.0.1'
       );
@@ -81,7 +82,7 @@ export class AssignmentController {
       const validated = gradeSubmissionSchema.parse(req.body);
       const result = await assignmentService.gradeSubmission(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         validated,
         req.ip || '127.0.0.1'
       );

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { examService } from '../services/exam.service';
 import {
   createExamSchema,
@@ -37,7 +38,7 @@ export class ExamController {
 
   async getMarks(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const marks = await examService.getMarks(req.user!, req.params.id);
+      const marks = await examService.getMarks(req.user!, req.params.id as string);
       res.json({
         success: true,
         data: marks,
@@ -53,7 +54,7 @@ export class ExamController {
       const validated = populateRosterSchema.parse(req.body);
       const result = await examService.populateRoster(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         validated,
         req.ip || '127.0.0.1'
       );
@@ -73,7 +74,7 @@ export class ExamController {
       const validated = updateMarksSchema.parse(req.body);
       const result = await examService.updateMarks(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         validated,
         req.ip || '127.0.0.1'
       );
@@ -90,7 +91,7 @@ export class ExamController {
 
   async toggleLock(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const outcome = await examService.toggleLock(req.user!, req.params.id, req.ip || '127.0.0.1');
+      const outcome = await examService.toggleLock(req.user!, req.params.id as string, req.ip || '127.0.0.1');
       res.json({
         success: true,
         data: outcome,

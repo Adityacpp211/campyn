@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { timetableService } from '../services/timetable.service';
 import { timetableSlotCreateSchema, timetableQuerySchema } from '../validators/timetable.validator';
 
@@ -30,7 +31,7 @@ export class TimetableController {
 
   async deleteSlot(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await timetableService.deleteSlot(req.user!, req.params.id);
+      await timetableService.deleteSlot(req.user!, req.params.id as string);
       res.json({
         success: true,
         message: 'Timetable slot deleted successfully',

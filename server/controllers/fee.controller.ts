@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { feeService } from '../services/fee.service';
 import { processPaymentSchema, refundFeeSchema } from '../validators/fee.validator';
 

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import '../middleware/requestId';
 import { approvalService } from '../services/approval.service';
 import { createApprovalSchema, decideApprovalSchema } from '../validators/approval.validator';
 
@@ -19,7 +20,7 @@ export class ApprovalController {
 
   async getApprovalById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const approval = await approvalService.getApprovalById(req.user!, req.params.id);
+      const approval = await approvalService.getApprovalById(req.user!, req.params.id as string);
       res.json({
         success: true,
         data: approval,
@@ -54,7 +55,7 @@ export class ApprovalController {
       const validatedInput = decideApprovalSchema.parse(req.body);
       const updated = await approvalService.decideApproval(
         req.user!,
-        req.params.id,
+        req.params.id as string,
         validatedInput,
         req.ip || '127.0.0.1'
       );
