@@ -4,7 +4,7 @@ export const createExamSchema = z.object({
   semesterId: z.string().uuid({ message: 'Valid semesterId UUID required' }),
   title: z.string().min(3, { message: 'Title must be at least 3 characters' }).max(255),
   examType: z.enum(['internal', 'midterm', 'final', 'lab'], {
-    errorMap: () => ({ message: 'Exam type must be internal, midterm, final, or lab' }),
+    message: 'Exam type must be internal, midterm, final, or lab',
   }),
 });
 

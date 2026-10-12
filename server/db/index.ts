@@ -102,6 +102,9 @@ export async function withTransaction<T>(
             rowCount: res.rowCount ?? res.rows.length,
           };
         },
+        async exec(sql: string): Promise<void> {
+          await client.query(sql);
+        },
       };
       const result = await callback(txClient);
       await client.query('COMMIT');
@@ -121,6 +124,9 @@ export async function withTransaction<T>(
             rows: res.rows as R[],
             rowCount: res.rows.length,
           };
+        },
+        async exec(sql: string): Promise<void> {
+          await tx.exec(sql);
         },
       };
       return await callback(txClient);

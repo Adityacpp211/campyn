@@ -138,8 +138,13 @@ feesRouter.post(
   '/transactions/:id/refund',
   requirePermission('fees.refund'),
   async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) as string;
     const { reason } = req.body;
+
+    if (!id) {
+      res.status(400).json({ success: false, error: { message: 'Valid transaction id is required' } });
+      return;
+    }
 
     if (!reason || reason.trim().length < 5) {
       res.status(400).json({ success: false, error: { message: 'A mandatory justification reason (min 5 characters) is required for refund reversal' } });
